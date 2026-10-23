@@ -1,7 +1,7 @@
 export interface Env { MLROOM_DO: DurableObjectNamespace; }
 export class MLRoomDO {
   private state: DurableObjectState;
-  private models: Map<string, any> = new Map();
+  private experiments: Map<string, any> = new Map();
   private websockets: WebSocket[] = [];
   constructor(state: DurableObjectState, env: Env) { this.state = state; }
   async fetch(request: Request): Promise<Response> {
@@ -11,15 +11,15 @@ export class MLRoomDO {
       this.state.acceptWebSocket(pair[1]);
       return new Response(null, { status: 101, webSocket: pair[0] });
     }
-    if (url.pathname === '/models' && request.method === 'GET') {
-      return Response.json(Array.from(this.models.values()));
+    if (url.pathname === '/experiments' && request.method === 'GET') {
+      return Response.json(Array.from(this.experiments.values()));
     }
-    if (url.pathname === '/model' && request.method === 'POST') {
+    if (url.pathname === '/experiment' && request.method === 'POST') {
       const data = await request.json();
-      const status = data.status || 'healthy';
-      this.models.set(data.id, { ...data, status });
-      this.broadcast(JSON.stringify({ type: 'model', data: this.models.get(data.id) }));
-      return Response.json({ success: true });
+      const experiment = { ...data, id: crypto.randomUUID(), runs: 0, metrics: {} };
+      this.experiments.set(experiment.id, experiment);
+      this.broadcast(JSON.stringify({ type: 'experiment', data: experiment }));
+      return Response.json({ success: true, experiment });
     }
     return new Response('Not Found', { status: 404 });
   }
